@@ -67,8 +67,8 @@ rand1(rng::AbstractRNG, ::Type{BigFloat}) = big(rand1(rng, Float64))
 arbitrary(::Type{BigFloat}, rng::AbstractRNG = MersenneTwister()) =
     flatten([BigFloat[0, 1, 2, 3, -1, -2, 10, 100, -10,
                       1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
-                      big(10)^10, big(10)^100, -big(10)^10,
-                      big(10)^-10, big(10)^-100, -big(10)^-10],
+                      big(10)^10, big(10)^100, big(10)^1000, -big(10)^10,
+                      big(10)^-10, big(10)^-100, big(10)^-1000, -big(10)^-10],
              Gen{BigFloat}(() -> rand1(rng, BigFloat))])
 
 const BigRational = Rational{BigInt}
