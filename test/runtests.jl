@@ -17,16 +17,16 @@ for T in alltypes
     @testset "Basic functionality for type $T" begin
         # Generate arbitrary values
         arb = arbitrary(T)
-        values = take(arb, 100)
+        values = collect(take(arb, 100))
         # Generate some other arbitrary values
         arb2 = arbitrary(T)
-        values2 = take(arb2, 100)
+        values2 = collect(take(arb2, 100))
         # Ensure they are different
         @test all(isequal.(values, values2)) == (T === Nothing)
         # Generate values from a known RNG
         arb3 = arbitrary(T, MersenneTwister(42))
         arb4 = arbitrary(T, MersenneTwister(42))
-        @test all(isequal.(take(arb3, 100), take(arb4, 100)))
+        @test all(isequal.(collect(take(arb3, 100)), collect(take(arb4, 100))))
     end
 end
 
