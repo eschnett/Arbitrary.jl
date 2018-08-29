@@ -34,9 +34,6 @@ for C in allcontainers
             arb2 = arbitrary(T)
             values2 = collect(take(arb2, 100))
             # Ensure they are different
-            @show C E T
-            @show all(myequal.(values, values2))
-            @show hasonevalue(E) && hasfixedshape(C)
             @test all(myequal.(values, values2)) ==
                 (hasonevalue(E) && hasfixedshape(C))
             # Generate values from a known RNG
