@@ -102,6 +102,7 @@ iterators, while the type ``Base.Iterators.Stateful`` captures
 iterators into mutable objects.
 
 ::
+
    collect(take(arbitrary(Point{Int}, UInt(42)), 20))
 
    20-element Array{Point{Int64},1}:
