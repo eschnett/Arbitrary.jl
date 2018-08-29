@@ -6,24 +6,27 @@ using Random
 using IterTools
 
 export arbitrary
+export Generate
+export ArbState
+export Small
 
 
 
 # Create an iterator from a stateful function
-struct Gen{T}
+struct Generate{T}
     fun::Function
 end
 
-Base.IteratorEltype(::Type{Gen{T}}) where {T} = Base.HasEltype()
-Base.IteratorSize(::Type{Gen{T}}) where {T} = Base.IsInfinite()
-Base.eltype(::Type{Gen{T}}) where {T} = T
-Base.iterate(gen::Gen{T}, state::Nothing = nothing) where {T} =
+Base.IteratorEltype(::Type{Generate{T}}) where {T} = Base.HasEltype()
+Base.IteratorSize(::Type{Generate{T}}) where {T} = Base.IsInfinite()
+Base.eltype(::Type{Generate{T}}) where {T} = T
+Base.iterate(gen::Generate{T}, state::Nothing = nothing) where {T} =
     (gen.fun()::T, nothing)
 
 
 
 # Internal state for arbitrary iterators
-struct ArbState
+mutable struct ArbState
     rng::AbstractRNG
 end
 
@@ -36,7 +39,9 @@ arbitrary(::Type{T}, seed::UInt) where {T} =
 
 # Produce arbitrary values based on an RNG
 random_arbitrary(::Type{T}, ast::ArbState) where {T} =
-    Gen{T}(() -> rand(ast.rng, T))
+    Generate{T}(() -> rand(ast.rng, T))
+random_arbitrary(r::AbstractRange{T}, ast::ArbState) where {T} =
+    Generate{T}(() -> rand(ast.rng, r))
 
 
 
@@ -95,9 +100,63 @@ arbitrary(::Type{BigRational}, ast::ArbState) =
                          1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
                          big(10)^10, big(10)^100, -big(10)^10,
                          1//big(10)^10, 1//big(10)^100, -1//big(10)^10],
-             Gen{BigRational}(
+             Generate{BigRational}(
                  let iter = Iterators.Stateful(random_arbitrary(Int, ast))
                      () -> mkrat(iter)
                  end)])
+
+struct Small{T}
+    value::T
+end
+Base.getindex(s::Small{T}) where {T} = s.value
+
+arbitrary(::Type{Small{U}}, ast::ArbState) where {U <: Unsigned} =
+    imap(Small{U}, flatten([U[0, 1, 2, 3, 10, 100, 1000],
+                            random_arbitrary(U(0):U(1000), ast)]))
+
+arbitrary(::Type{Ref{T}}, ast::ArbState) where {T} =
+    imap(x -> Ref{T}(x), arbitrary(T, ast))
+
+arbitrary(::Type{Tuple{}}, ast::ArbState) =
+    repeated(Tuple{}())
+
+arbitrary(::Type{Tuple{T}}, ast::ArbState) where {T} =
+    imap(x -> Tuple{T}((x,)), arbitrary(T, ast))
+
+arbitrary(::Type{Tuple{T1, T2}}, ast::ArbState) where {T1, T2} =
+    imap((x, y) -> Tuple{T1, T2}((x, y)),
+         arbitrary(T1, ast), arbitrary(T2, ast))
+
+arbitrary(::Type{Array{T, 0}}, ast::ArbState) where {T} =
+    imap(x -> fill(x, ()), arbitrary(T, ast))
+
+function arbitrary(::Type{Array{T, 1}}, ast::ArbState) where {T}
+    lengths = Iterators.Stateful(arbitrary(Small{UInt}, ast))
+    elems = Iterators.Stateful(arbitrary(T, ast))
+    Generate{Array{T, 1}}(
+        () -> begin
+                  len = popfirst!(lengths)
+                  xs = Array{T, 1}(undef, len[] % 100)
+                  for i in eachindex(xs)
+                      xs[i] = popfirst!(elems)
+                  end
+                  xs
+              end)
+end
+
+function arbitrary(::Type{Array{T, 2}}, ast::ArbState) where {T}
+    lengths =
+        Iterators.Stateful(arbitrary(Tuple{Small{UInt}, Small{UInt}}, ast))
+    elems = Iterators.Stateful(arbitrary(T, ast))
+    Generate{Array{T, 2}}(
+        () -> begin
+                  len1, len2 = popfirst!(lengths)
+                  xs = Array{T, 2}(undef, len1[] % 10, len2[] % 10)
+                  for i in eachindex(xs)
+                      xs[i] = popfirst!(elems)
+                  end
+                  xs
+              end)
+end
 
 end

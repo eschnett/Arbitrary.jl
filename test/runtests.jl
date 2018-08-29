@@ -10,22 +10,41 @@ const alltypes = [Nothing, Bool, Char,
                   UInt8, UInt16, UInt32, UInt64, UInt128,
                   Float16, Float32, Float64,
                   BigInt, BigFloat,
-                  Rational{BigInt}]
+                  Rational{BigInt},
+                  Tuple{}]
+hasonevalue(T) = T in [Nothing, Tuple{}]
 
-for T in alltypes
-    @testset "Basic functionality for type $T" begin
-        # Generate arbitrary values
-        arb = arbitrary(T)
-        values = collect(take(arb, 100))
-        # Generate some other arbitrary values
-        arb2 = arbitrary(T)
-        values2 = collect(take(arb2, 100))
-        # Ensure they are different
-        @test all(isequal.(values, values2)) == (T === Nothing)
-        # Generate values from a known RNG
-        arb3 = arbitrary(T, UInt(42))
-        arb4 = arbitrary(T, UInt(42))
-        @test all(isequal.(collect(take(arb3, 100)), collect(take(arb4, 100))))
+const Array0{T} = Array{T, 0}
+const Array1{T} = Array{T, 1}
+const Array2{T} = Array{T, 2}
+const allcontainers = [nothing, Ref, Tuple, Array0, Array1, Array2]
+hasfixedshape(C) = C in [nothing, Ref, Tuple, Array0]
+
+myequal(x::T, y::T) where {T} = isequal(x, y)
+myequal(x::Ref{T}, y::Ref{T}) where {T} = isequal(x[], y[])
+
+for C in allcontainers
+    for E in alltypes
+        T = C === nothing ? E : C{E}
+        @testset "Basic functionality for type $T" begin
+            # Generate arbitrary values
+            arb = arbitrary(T)
+            values = collect(take(arb, 100))
+            # Generate some other arbitrary values
+            arb2 = arbitrary(T)
+            values2 = collect(take(arb2, 100))
+            # Ensure they are different
+            @show C E T
+            @show all(myequal.(values, values2))
+            @show hasonevalue(E) && hasfixedshape(C)
+            @test all(myequal.(values, values2)) ==
+                (hasonevalue(E) && hasfixedshape(C))
+            # Generate values from a known RNG
+            arb3 = arbitrary(T, UInt(42))
+            arb4 = arbitrary(T, UInt(42))
+            @test all(myequal.(collect(take(arb3, 100)),
+                               collect(take(arb4, 100))))
+        end
     end
 end
 

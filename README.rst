@@ -33,10 +33,11 @@ will then go on to produce more "difficult" values via a random number
 generator. I expect that testing properties with e.g. 100 such
 arbitrary values make for good property tests.
 
-Example:
+Example 1:
 ::
-   import Arbitrary
-   import Test
+   using Base.Iterators
+   using Test
+   using Arbitrary
 
    # Generate arbitrary values
    xs = collect(take(arbitrary(BigInt), 100))
@@ -70,10 +71,10 @@ The ``Arbitrary`` package contains methods for various built-in types.
 To extend this for your own type, you need to provide a respective
 method for the ``arbitrary`` function.
 
-Example:
+Example 2:
 ::
-   import Random
-   import Arbitrary
+   using Base.Iterators
+   using Arbitrary
 
    # Define your own type
    struct Point{T}
@@ -81,10 +82,53 @@ Example:
        y::T
    end
 
-   # Define an arbitrary method
-   Arbitrary.arbitrary(::Type{Point{T}}, ast::ArbState) where {T <: Number} =
+   # Define a method for Arbitrary.arbitrary
+   function Arbitrary.arbitrary(::Type{Point{T}}, ast::ArbState) where {T}
+       xs = Iterators.Stateful(arbitrary(T, ast))
        flatten([Point{T}[Point(T(0), T(0)),
                          Point(T(0), T(1)),
                          Point(T(1), T(0)),
                          Point(T(-1), T(-1))],
-                ...
+                Generate{Point{T}}(
+                    () -> Point(popfirst!(xs), popfirst!(xs)))])
+   end
+
+This ``arbitrary`` method first generates 4 points with particular
+values, which are presumably simple but interesting. Next it uses
+existing ``arbitrary`` methods for the type ``T`` to generate new
+points. ``Generate`` is a wrapper type that creates an iterator from a
+function. The function ``Base.Iterators.flatten`` concatenates
+iterators, while the type ``Base.Iterators.Stateful`` captures
+iterators into mutable objects.
+
+::
+   collect(take(arbitrary(Point{Int}, UInt(42)), 20))
+
+   20-element Array{Point{Int64},1}:
+    Point{Int64}(0, 0)                                      
+    Point{Int64}(0, 1)                                      
+    Point{Int64}(1, 0)                                      
+    Point{Int64}(-1, -1)                                    
+    Point{Int64}(0, 1)                                      
+    Point{Int64}(2, 3)                                      
+    Point{Int64}(-1, -2)                                    
+    Point{Int64}(10, 100)                                   
+    Point{Int64}(-10, 9223372036854775807)                  
+    Point{Int64}(9223372036854775806, -9223372036854775808) 
+    Point{Int64}(-9223372036854775807, 9067366622006296321) 
+    Point{Int64}(-2256197071093261190, -5795687145721743680)
+    Point{Int64}(2798402323870333227, 8156153274284847668)  
+    Point{Int64}(8296248152788523164, 2972613083423981281)  
+    Point{Int64}(6437123995368952903, -7346326483082348639) 
+    Point{Int64}(5681684189447142543, 499062510383072047)   
+    Point{Int64}(-4069693335803290299, -5159697560496114268)
+    Point{Int64}(5657203908704019168, -551782769629649706)  
+    Point{Int64}(5497552197468976212, -2695328260518845352) 
+    Point{Int64}(-1464621002877751017, -7952756775211842320)
+
+The generated arbitrary points start out with the four special values
+that are specified explicitly, and then continue with arbitrary
+``Int`` values. If you run this example, then your output will differ
+since you will be using a different random number generator seed. You
+can explicitly pass in a seed by calling e.g. ``arbitrary(Point{Int},
+UInt(42))`` to ensure reproducible arbitrary sequences.
