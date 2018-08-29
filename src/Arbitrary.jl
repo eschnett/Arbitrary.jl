@@ -22,37 +22,6 @@ Base.iterate(gen::Gen{T}, state::Nothing = nothing) where {T} =
 
 
 
-# Create an iterator from a pure function that takes an iterator as argument
-mutable struct Iter
-    iter
-    havestate::Bool
-    state
-    Iter(iter) = new(iter, false, nothing)
-end
-function next(iter::Iter)
-    if !iter.havestate
-        res, state = iterate(iter.iter)
-    else
-        res, state = iterate(iter.iter, iter.state)
-    end
-    iter.havestate = true
-    iter.state = state
-    res
-end
-
-struct Gen2{T}
-    fun::Function
-    iter::Iter
-end
-
-Base.IteratorEltype(::Type{Gen2{T}}) where {T} = Base.HasEltype()
-Base.IteratorSize(::Type{Gen2{T}}) where {T} = Base.IsInfinite()
-Base.eltype(::Type{Gen2{T}}) where {T} = T
-Base.iterate(gen::Gen2{T}, state::Nothing = nothing) where {T} =
-    gen.fun(gen.iter), nothing
-
-
-
 # Internal state for arbitrary iterators
 struct ArbState
     rng::AbstractRNG
@@ -113,11 +82,11 @@ arbitrary(::Type{BigFloat}, ast::ArbState) =
              imap(big, random_arbitrary(Float64, ast))])
 
 const BigRational = Rational{BigInt}
-function mkrat(iter::Iter)::BigRational
-    enum = big(next(iter))
+function mkrat(arb::Iterators.Stateful)::BigRational
+    enum = big(popfirst!(arb)::Int)
     denom = big(0)
     while denom == 0
-        denom = big(next(iter))
+        denom = big(popfirst!(arb)::Int)
     end
     BigRational(enum, denom)
 end
@@ -126,6 +95,9 @@ arbitrary(::Type{BigRational}, ast::ArbState) =
                          1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
                          big(10)^10, big(10)^100, -big(10)^10,
                          1//big(10)^10, 1//big(10)^100, -1//big(10)^10],
-             Gen2{BigRational}(mkrat, Iter(random_arbitrary(Int, ast)))])
+             Gen{BigRational}(
+                 let iter = Iterators.Stateful(random_arbitrary(Int, ast))
+                     () -> mkrat(iter)
+                 end)])
 
 end
