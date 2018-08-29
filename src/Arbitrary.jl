@@ -3,15 +3,9 @@ module Arbitrary
 using Base.Iterators
 using Random
 
+using IterTools
+
 export arbitrary
-
-
-
-# Our own random number function, which we can overload without
-# disturbing Julia's
-const Floating = Union{Float16, Float32, Float64}
-const RandTypes = Union{Bool, Char, Signed, Unsigned, Floating}
-rand1(rng::AbstractRNG, ::Type{T}) where {T <: RandTypes} = rand(rng, T)
 
 
 
@@ -28,63 +22,110 @@ Base.iterate(gen::Gen{T}, state::Nothing = nothing) where {T} =
 
 
 
-arbitrary(::Type{Nothing}, rng::AbstractRNG = MersenneTwister()) =
-    repeated(nothing)
+# Create an iterator from a pure function that takes an iterator as argument
+mutable struct Iter
+    iter
+    havestate::Bool
+    state
+    Iter(iter) = new(iter, false, nothing)
+end
+function next(iter::Iter)
+    if !iter.havestate
+        res, state = iterate(iter.iter)
+    else
+        res, state = iterate(iter.iter, iter.state)
+    end
+    iter.havestate = true
+    iter.state = state
+    res
+end
 
-arbitrary(::Type{Bool}, rng::AbstractRNG = MersenneTwister()) =
-    Gen{Bool}(() -> rand1(rng, Bool))
+struct Gen2{T}
+    fun::Function
+    iter::Iter
+end
 
-arbitrary(::Type{Char}, rng::AbstractRNG = MersenneTwister()) =
+Base.IteratorEltype(::Type{Gen2{T}}) where {T} = Base.HasEltype()
+Base.IteratorSize(::Type{Gen2{T}}) where {T} = Base.IsInfinite()
+Base.eltype(::Type{Gen2{T}}) where {T} = T
+Base.iterate(gen::Gen2{T}, state::Nothing = nothing) where {T} =
+    gen.fun(gen.iter), nothing
+
+
+
+# Internal state for arbitrary iterators
+struct ArbState
+    rng::AbstractRNG
+end
+
+# Provide a default state
+arbitrary(::Type{T}) where {T} = arbitrary(T, ArbState(MersenneTwister()))
+arbitrary(::Type{T}, seed::UInt) where {T} =
+    arbitrary(T, ArbState(MersenneTwister(seed)))
+
+
+
+# Produce arbitrary values based on an RNG
+random_arbitrary(::Type{T}, ast::ArbState) where {T} =
+    Gen{T}(() -> rand(ast.rng, T))
+
+
+
+# Methods for particular types
+arbitrary(::Type{Nothing}, ast::ArbState) = repeated(nothing)
+
+arbitrary(::Type{Bool}, ast::ArbState) = random_arbitrary(Bool, ast)
+
+arbitrary(::Type{Char}, ast::ArbState) =
     flatten([Char['a', 'b', 'c', 'A', 'B', 'C', '0', '1', '2',
                   '\'', '"', '`', '\\', '/',
                   ' ', '\t', '\r', '\n',
                   '\0'],
-             Gen{Char}(() -> rand1(rng, Char))])
+             random_arbitrary(Char, ast)])
 
-arbitrary(::Type{S}, rng::AbstractRNG = MersenneTwister()) where {S<:Signed} =
+arbitrary(::Type{S}, ast::ArbState) where {S<:Signed} =
     flatten([S[0, 1, 2, 3, -1, -2, 10, 100, -10,
                typemax(S), typemax(S)-1, typemin(S), typemin(S)+1],
-             Gen{S}(() -> rand1(rng, S))])
+             random_arbitrary(S, ast)])
 
-arbitrary(::Type{U}, rng::AbstractRNG = MersenneTwister()) where {U<:Unsigned} =
+arbitrary(::Type{U}, ast::ArbState) where {U<:Unsigned} =
     flatten([U[0, 1, 2, 3, 10, 100, typemax(U), typemax(U)-1],
-             Gen{U}(() -> rand1(rng, U))])
+             random_arbitrary(U, ast)])
 
-arbitrary(::Type{F}, rng::AbstractRNG = MersenneTwister()) where {F<:Floating} =
+const Floating = Union{Float16, Float32, Float64}
+arbitrary(::Type{F}, ast::ArbState) where {F<:Floating} =
     flatten([F[0, 1, 2, 3, -1, -2, 10, 100, -10,
                1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
                F(-0.0), F(Inf), F(-Inf), eps(F), 1+eps(F), 1-eps(F),
                F(NaN)],
-             Gen{F}(() -> rand1(rng, F))])
+             random_arbitrary(F, ast)])
 
-rand1(rng::AbstractRNG, ::Type{BigInt}) = big(rand1(rng, Int))
-arbitrary(::Type{BigInt}, rng::AbstractRNG = MersenneTwister()) =
+arbitrary(::Type{BigInt}, ast::ArbState) =
     flatten([BigInt[0, 1, 2, 3, -1, -2, 10, 100, -10,
                     big(10)^10, big(10)^100, -big(10)^10],
-             Gen{BigInt}(() -> rand1(rng, BigInt))])
+             imap(big, random_arbitrary(Int, ast))])
 
-rand1(rng::AbstractRNG, ::Type{BigFloat}) = big(rand1(rng, Float64))
-arbitrary(::Type{BigFloat}, rng::AbstractRNG = MersenneTwister()) =
+arbitrary(::Type{BigFloat}, ast::ArbState) =
     flatten([BigFloat[0, 1, 2, 3, -1, -2, 10, 100, -10,
                       1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
                       big(10)^10, big(10)^100, big(10)^1000, -big(10)^10,
                       big(10)^-10, big(10)^-100, big(10)^-1000, -big(10)^-10],
-             Gen{BigFloat}(() -> rand1(rng, BigFloat))])
+             imap(big, random_arbitrary(Float64, ast))])
 
 const BigRational = Rational{BigInt}
-function rand1(rng, ::Type{Rational{I}}) where {I <: Integer}
-    enum = rand1(rng, I)
-    denom = I(0)
+function mkrat(iter::Iter)::BigRational
+    enum = big(next(iter))
+    denom = big(0)
     while denom == 0
-        denom = rand1(rng, I)
+        denom = big(next(iter))
     end
-    Rational{I}(enum, denom)
+    BigRational(enum, denom)
 end
-arbitrary(::Type{BigRational}, rng::AbstractRNG = MersenneTwister()) =
+arbitrary(::Type{BigRational}, ast::ArbState) =
     flatten([BigRational[0, 1, 2, 3, -1, -2, 10, 100, -10,
                          1//2, 1//3, -1//2, 1//10, 1//100, -1//10,
                          big(10)^10, big(10)^100, -big(10)^10,
                          1//big(10)^10, 1//big(10)^100, -1//big(10)^10],
-             Gen{BigRational}(() -> rand1(rng, BigRational))])
+             Gen2{BigRational}(mkrat, Iter(random_arbitrary(Int, ast)))])
 
 end

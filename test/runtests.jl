@@ -1,5 +1,4 @@
 using Base.Iterators
-using Random
 using Test
 
 using Arbitrary
@@ -24,8 +23,8 @@ for T in alltypes
         # Ensure they are different
         @test all(isequal.(values, values2)) == (T === Nothing)
         # Generate values from a known RNG
-        arb3 = arbitrary(T, MersenneTwister(42))
-        arb4 = arbitrary(T, MersenneTwister(42))
+        arb3 = arbitrary(T, UInt(42))
+        arb4 = arbitrary(T, UInt(42))
         @test all(isequal.(collect(take(arb3, 100)), collect(take(arb4, 100))))
     end
 end
