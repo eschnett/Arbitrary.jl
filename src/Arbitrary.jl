@@ -127,6 +127,14 @@ arbitrary(::Type{Tuple{T1, T2}}, ast::ArbState) where {T1, T2} =
     imap((x, y) -> Tuple{T1, T2}((x, y)),
          arbitrary(T1, ast), arbitrary(T2, ast))
 
+@generated function arbitrary(::Type{T}, ast::ArbState) where {T <: Tuple}
+    N = fieldcount(T)
+    @assert N > 2
+    quote
+        zip($((:(arbitrary($(fieldtype(T, i)), ast)) for i in 1:N)...))
+    end
+end
+
 arbitrary(::Type{Array{T, 0}}, ast::ArbState) where {T} =
     imap(x -> fill(x, ()), arbitrary(T, ast))
 

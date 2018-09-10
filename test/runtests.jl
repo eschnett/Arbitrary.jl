@@ -11,7 +11,10 @@ const alltypes = [Nothing, Bool, Char,
                   Float16, Float32, Float64,
                   BigInt, BigFloat,
                   Rational{BigInt},
-                  Tuple{}]
+                  Tuple{},
+                  Tuple{Int8, Int16},
+                  Tuple{Int8, Int16, Int32},
+                  Tuple{Int8, Int16, Int32, Int64}]
 hasonevalue(T) = T in [Nothing, Tuple{}]
 
 const Array0{T} = Array{T, 0}
