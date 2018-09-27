@@ -9,6 +9,11 @@ export arbitrary
 export Generate
 export ArbState
 export Small
+export Fun
+
+
+
+# TODO: Create a SimpleTrait "Arbitrary"
 
 
 
@@ -165,6 +170,28 @@ function arbitrary(::Type{Array{T, 2}}, ast::ArbState) where {T}
                   end
                   xs
               end)
+end
+
+
+
+mutable struct Fun{T, R}
+    arb
+    dict::Dict{T, R}
+    function Fun{T, R}(arb) where {T, R}
+        new{T, R}(Iterators.Stateful(arb), Dict{T, R}())
+    end
+end
+
+function arbitrary(::Type{Fun{T, R}}, ast::ArbState) where {T, R}
+    # TODO: Use different ArbStates for different functions
+    Generate{Fun{T, R}}(() -> Fun{T, R}(arbitrary(R, ast)))
+end
+
+function (f::Fun{T,R})(x::T)::R where {T, R}
+    if x in keys(f.dict)
+        return f.dict[x]
+    end
+    f.dict[x] = popfirst!(f.arb)
 end
 
 end

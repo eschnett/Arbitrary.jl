@@ -91,3 +91,26 @@ for T in arithmetic_types
         end
     end
 end
+
+
+
+const function_types = [Int, Float64, Char, UInt]
+
+@testset "Function identities" begin
+    T1, T2, T3, T4 = function_types
+    fs = collect(take(arbitrary(Fun{T1, T2}), 100))
+    gs = collect(take(arbitrary(Fun{T2, T3}), 100))
+    hs = collect(take(arbitrary(Fun{T3, T4}), 100))
+    xs = collect(take(arbitrary(T1), 100))
+
+    # Neutral element
+    for f in fs
+        @test all(isequal((f ∘ identity)(x), f(x)) for x in xs)
+        @test all(isequal((identity ∘ f)(x), f(x)) for x in xs)
+    end
+
+    # Associativity
+    for (f, g, h) in zip(fs, gs, hs)
+        @test all(isequal(((h ∘ g) ∘ f)(x), (h ∘ (g ∘ f))(x)) for x in xs)
+    end
+end
