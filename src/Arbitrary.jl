@@ -9,7 +9,7 @@ export arbitrary
 export Generate
 export ArbState
 export Small
-export Fun
+export Fun, fun_isequal
 
 
 
@@ -187,11 +187,17 @@ function arbitrary(::Type{Fun{T, R}}, ast::ArbState) where {T, R}
     Generate{Fun{T, R}}(() -> Fun{T, R}(arbitrary(R, ast)))
 end
 
+struct NotFound end
 function (f::Fun{T,R})(x::T)::R where {T, R}
-    if x in keys(f.dict)
-        return f.dict[x]
-    end
+    r = get(f.dict, x, NotFound())
+    r !== NotFound() && return r
     f.dict[x] = popfirst!(f.arb)
+end
+
+function fun_isequal(::Type{T}, f, g) where {T}
+    # T = common(argtype(f), argtype(g))
+    xs = collect(take(arbitrary(T), 100))
+    all(isequal(f(x), g(x)) for x in xs)
 end
 
 end
