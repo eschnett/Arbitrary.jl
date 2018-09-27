@@ -53,8 +53,9 @@ Why not just random values?
 ---------------------------
 
 This package takes its motivation from Haskell's
-``Test.QuickCheck.Arbitrary`` type class
-<http://hackage.haskell.org/package/QuickCheck-2.11.3/docs/Test-QuickCheck-Arbitrary.html>.
+```Test.QuickCheck.Arbitrary``
+<http://hackage.haskell.org/package/QuickCheck-2.11.3/docs/Test-QuickCheck-Arbitrary.html>`_
+type class.
 
 Arbitrary values are quite similar to random values. The main
 difference is that one has (better) control over the the probability
