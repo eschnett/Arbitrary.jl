@@ -53,7 +53,7 @@ Why not just random values?
 ---------------------------
 
 This package takes its motivation from Haskell's
-```Test.QuickCheck.Arbitrary``
+` ``Test.QuickCheck.Arbitrary``
 <http://hackage.haskell.org/package/QuickCheck-2.11.3/docs/Test-QuickCheck-Arbitrary.html>`_
 type class.
 
