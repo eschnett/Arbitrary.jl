@@ -1,6 +1,6 @@
 The Arbitrary.jl package is licensed under the MIT License:
 
-`The MIT License (MIT) <https://opensource.org/licenses/MIT>`__
+The MIT License (MIT) <https://opensource.org/licenses/MIT>
 
 Copyright (c) 2018 Erik Schnetter
 
