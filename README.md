@@ -5,6 +5,7 @@ Generate arbitrary sequences for testing.
 [![Build Status (Travis)](https://travis-ci.org/eschnett/Arbitrary.jl.svg?branch=master)](https://travis-ci.org/eschnett/Arbitrary.jl)
 [![Build status (Appveyor)](https://ci.appveyor.com/api/projects/status/r0ryqdjn2rmhv29w?svg=true)](https://ci.appveyor.com/project/eschnett/arbitrary-jl)
 [![Coverage Status (Coveralls)](https://coveralls.io/repos/github/eschnett/Arbitrary.jl/badge.svg?branch=master)](https://coveralls.io/github/eschnett/Arbitrary.jl?branch=master)
+[![DOI](https://zenodo.org/badge/146501346.svg)](https://zenodo.org/badge/latestdoi/146501346)
 
 ## Overview
 
